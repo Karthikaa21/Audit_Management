@@ -2,8 +2,6 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { kf } from "./../sdk/index.js";
 
 const POLL_INTERVAL_MS = 20000; // 20 sec
-
-// ✅ ONLY show audits assigned to me (any role: Auditor / Auditee / Admin(created_by))
 const CALENDAR_SHOW_MODE = "only_assigned_to_me";
 
 // ---------- helpers ----------
@@ -16,10 +14,9 @@ const getUserEmailFrom = (u) =>
   (u?.Email || u?.email || u?.Mail || u?.mail || "").toString().trim();
 
 function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
 }
 
 const toSlashDate = (d) =>
@@ -43,7 +40,6 @@ const getAssignmentPalette = (assignmentRole) => {
   return { bg: "#E5E7EB", fg: "#374151", border: "#D1D5DB", label: "" };
 };
 
-// ✅ Try multiple field names because your process field keys may vary
 const pickUserObj = (item, keys = []) => {
   for (const k of keys) {
     const v = item?.[k];
@@ -52,10 +48,7 @@ const pickUserObj = (item, keys = []) => {
   return null;
 };
 
-// ✅ Detect my assignment roles from the item response
-// - Auditor when item's Auditor field matches me
-// - Auditee when item's Auditee/Site_Owner/Process_Owner field matches me
-// - Admin when _created_by email matches my email
+// ✅ roles: auditor / auditee / admin(created_by email matches my email)
 const getMyAssignmentRoles = (item, userId, userEmail) => {
   const uid = String(userId || "");
   const meEmail = String(userEmail || "").trim().toLowerCase();
@@ -72,7 +65,6 @@ const getMyAssignmentRoles = (item, userId, userEmail) => {
   if (auditorId && String(auditorId) === uid) roles.push("auditor");
   if (auditeeId && String(auditeeId) === uid) roles.push("auditee");
 
-  // ✅ Admin logic = created_by email matches my email
   const createdByEmail = getUserEmailFrom(createdByObj).toLowerCase();
   if (createdByEmail && meEmail && createdByEmail === meEmail) roles.push("admin");
 
@@ -83,19 +75,17 @@ export function DefaultLandingComponent() {
   const today = new Date();
 
   const PROCESS_CODE = "Audit_Process_Management_A00";
-  const POPUP_ID = "Popup_zZF8Gu-nmV";
+  const POPUP_ID = "Popup_12Md6sNLhy";
 
   const [viewMode, setViewMode] = useState("month"); // day | week | month
   const [currentDate, setCurrentDate] = useState(today);
   const [hoveredDate, setHoveredDate] = useState(null);
 
-  // events: [{ id,title,dateKey,assignmentRole,auditType,siteName,createdByName,auditorName,auditeeName }]
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-  // Filters
-  const [roleFilter, setRoleFilter] = useState("all"); // all | admin | auditor | auditee
+  // ✅ only keep these filters (no role filter)
   const [auditTypeFilter, setAuditTypeFilter] = useState("all");
   const [siteFilter, setSiteFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -110,20 +100,13 @@ export function DefaultLandingComponent() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
-  const firstDayOfMonth = useMemo(
-    () => new Date(currentYear, currentMonth, 1),
-    [currentYear, currentMonth]
-  );
-  const lastDayOfMonth = useMemo(
-    () => new Date(currentYear, currentMonth + 1, 0),
-    [currentYear, currentMonth]
-  );
+  const firstDayOfMonth = useMemo(() => new Date(currentYear, currentMonth, 1), [currentYear, currentMonth]);
+  const lastDayOfMonth = useMemo(() => new Date(currentYear, currentMonth + 1, 0), [currentYear, currentMonth]);
   const monthStartWeekday = firstDayOfMonth.getDay();
   const daysInMonth = lastDayOfMonth.getDate();
 
   const areSameDay = (a, b) => dateKey(a) === dateKey(b);
 
-  // ---------- filter options ----------
   const auditTypeOptions = useMemo(() => {
     const set = new Set();
     events.forEach((ev) => {
@@ -141,11 +124,9 @@ export function DefaultLandingComponent() {
     return Array.from(set);
   }, [events]);
 
-  // ---------- apply filters ----------
+  // ✅ apply only auditType + site filters (no role filter)
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
-      if (roleFilter !== "all" && ev.assignmentRole !== roleFilter) return false;
-
       if (auditTypeFilter !== "all") {
         const label = ev.auditType || ev.title;
         if (label !== auditTypeFilter) return false;
@@ -155,18 +136,12 @@ export function DefaultLandingComponent() {
 
       return true;
     });
-  }, [events, roleFilter, auditTypeFilter, siteFilter]);
+  }, [events, auditTypeFilter, siteFilter]);
 
-  const eventsForDate = (d) =>
-    filteredEvents.filter((e) => e.dateKey === dateKey(d));
+  const eventsForDate = (d) => filteredEvents.filter((e) => e.dateKey === dateKey(d));
 
-  // ---------- map item -> events (only assigned roles) ----------
   const mapItemToEvents = (item, userId, userEmail) => {
-    const rawDate =
-      item?.Audit_Scheduled_Date ||
-      item?.Audit_Scheduled_Date__Final ||
-      item?._created_at;
-
+    const rawDate = item?.Audit_Scheduled_Date || item?.Audit_Scheduled_Date__Final || item?._created_at;
     if (!rawDate) return [];
 
     const d = new Date(rawDate);
@@ -175,18 +150,10 @@ export function DefaultLandingComponent() {
     const dateKeyStr = dateKey(d);
     const baseId = item?._id || `${dateKeyStr}-${Math.random()}`;
 
-    const { roles, auditorObj, auditeeObj, createdByObj } = getMyAssignmentRoles(
-      item,
-      userId,
-      userEmail
-    );
+    const { roles, auditorObj, auditeeObj, createdByObj } = getMyAssignmentRoles(item, userId, userEmail);
 
-    // ✅ Only show what is assigned to me
-    if (CALENDAR_SHOW_MODE === "only_assigned_to_me" && roles.length === 0) {
-      return [];
-    }
+    if (CALENDAR_SHOW_MODE === "only_assigned_to_me" && roles.length === 0) return [];
 
-    // Fields
     const siteName = item?.Site_Name || "Unnamed site";
 
     const auditTypeRaw = item?.Audit_Type;
@@ -202,26 +169,17 @@ export function DefaultLandingComponent() {
         .filter(Boolean)
         .join(", ");
     } else if (auditTypeRaw && typeof auditTypeRaw === "object") {
-      auditTypeLabel =
-        auditTypeRaw.Name || auditTypeRaw.label || auditTypeRaw.DisplayName || "";
+      auditTypeLabel = auditTypeRaw.Name || auditTypeRaw.label || auditTypeRaw.DisplayName || "";
     } else if (auditTypeRaw != null) {
       auditTypeLabel = String(auditTypeRaw);
     }
 
     const title = auditTypeLabel || siteName || "Audit";
 
-    const createdByName =
-      createdByObj?.Name ||
-      createdByObj?.DisplayName ||
-      createdByObj?.Email ||
-      "";
+    const createdByName = createdByObj?.Name || createdByObj?.DisplayName || createdByObj?.Email || "";
+    const auditorName = auditorObj?.Name || auditorObj?.DisplayName || auditorObj?.Email || "";
+    const auditeeName = auditeeObj?.Name || auditeeObj?.DisplayName || auditeeObj?.Email || "";
 
-    const auditorName =
-      auditorObj?.Name || auditorObj?.DisplayName || auditorObj?.Email || "";
-    const auditeeName =
-      auditeeObj?.Name || auditeeObj?.DisplayName || auditeeObj?.Email || "";
-
-    // ✅ Create one card per role assigned to me (Admin / Auditor / Auditee)
     return roles.map((r) => ({
       id: `${baseId}-${r}`,
       title,
@@ -235,7 +193,6 @@ export function DefaultLandingComponent() {
     }));
   };
 
-  // ---------- fetch from process ----------
   const loadEvents = async (showLoader = false) => {
     try {
       if (showLoader) setLoading(true);
@@ -249,23 +206,15 @@ export function DefaultLandingComponent() {
         return;
       }
 
-      const monthForQuery =
-        viewMode === "month" ? currentMonth + 1 : currentDate.getMonth() + 1;
-
+      const monthForQuery = viewMode === "month" ? currentMonth + 1 : currentDate.getMonth() + 1;
       const monthStr = String(monthForQuery).padStart(2, "0");
-      const q = `-${monthStr}-`; // your pattern
+      const q = `-${monthStr}-`;
 
-      const url = `/process/2/${accId}/admin/${PROCESS_CODE}/item?page_number=1&page_size=10000000000000000&apply_preference=1&q=${encodeURIComponent(
-        q
-      )}`;
+      const url = `/process/2/${accId}/admin/${PROCESS_CODE}/item?page_number=1&page_size=10000000000000000&apply_preference=1&q=${encodeURIComponent(q)}`;
 
       const res = await kf.api(url);
 
-      const rawList = Array.isArray(res?.Data)
-        ? res.Data
-        : Array.isArray(res?.items)
-        ? res.items
-        : [];
+      const rawList = Array.isArray(res?.Data) ? res.Data : Array.isArray(res?.items) ? res.items : [];
 
       const mapped = [];
       rawList.forEach((item) => {
@@ -285,18 +234,13 @@ export function DefaultLandingComponent() {
     }
   };
 
-  // ---------- initial load + polling ----------
   useEffect(() => {
     let cancelled = false;
     let intervalId;
 
     const bootstrap = async () => {
       let attempts = 0;
-      while (
-        (!kf.user?._id || !kf.account?._id) &&
-        !cancelled &&
-        attempts < 40
-      ) {
+      while ((!kf.user?._id || !kf.account?._id) && !cancelled && attempts < 40) {
         await new Promise((r) => setTimeout(r, 250));
         attempts += 1;
       }
@@ -318,7 +262,6 @@ export function DefaultLandingComponent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, currentDate]);
 
-  // ---------- pinch / trackpad zoom ----------
   useEffect(() => {
     const handleWheel = (e) => {
       if (!e.ctrlKey) return;
@@ -343,7 +286,6 @@ export function DefaultLandingComponent() {
     return () => window.removeEventListener("wheel", handleWheel);
   }, [viewMode, hoveredDate]);
 
-  // ---------- close filters popover ----------
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (showFilters && filtersRef.current && !filtersRef.current.contains(e.target)) {
@@ -354,7 +296,6 @@ export function DefaultLandingComponent() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showFilters]);
 
-  // ---------- navigation ----------
   const goPrev = () => {
     if (viewMode === "month") setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
     else if (viewMode === "week") {
@@ -383,58 +324,79 @@ export function DefaultLandingComponent() {
 
   const goToday = () => setCurrentDate(today);
 
-  // ---------- ✅ Create audit flow ----------
-  const createAudit = async () => {
-    try {
-      const accId = kf.account?._id;
-      if (!accId) throw new Error("Account ID missing");
+  // ✅ Create audit flow
+  // ---------- ✅ Create audit flow (POST with date in body) ----------
+const createAudit = async () => {
+  try {
+    const accId = kf.account?._id;
+    if (!accId) throw new Error("Account ID missing");
 
-      // ✅ Block past dates
-      if (isPastDay(currentDate, today)) {
-        alert("You cannot create an audit for a past date.");
-        return;
-      }
-
-      // 1) Create (POST)
-      const createUrl = `/process/2/${accId}/${PROCESS_CODE}`;
-      const createRes = await kf.api(createUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-
-      const instanceId = createRes?._id;
-      const activityId = createRes?._activity_instance_id;
-
-      if (!instanceId || !activityId) {
-        console.log("Create response:", createRes);
-        throw new Error("Missing instance/activity id from create response");
-      }
-
-      // 2) ✅ UPDATE DATE FIRST (PUT)
-      const scheduledDate = toSlashDate(currentDate);
-      const putUrl = `/process/2/${accId}/admin/${PROCESS_CODE}/${instanceId}`;
-
-      await kf.api(putUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ Audit_Scheduled_Date: scheduledDate }),
-      });
-
-      // 3) Set global vars (after date update)
-      await kf.app.setVariable("Audit_Process_Instance_Id", instanceId);
-      await kf.app.setVariable("Audit_Process_Activity_Instance_Id", activityId);
-
-      // 4) Delay
-      await delay(1000);
-
-      // 5) Open popup
-      kf.app.page.openPopup(POPUP_ID);
-    } catch (e) {
-      console.error("Create audit failed:", e);
-      alert("Create audit failed. Check console logs.");
+    // ❌ Block past dates
+    if (isPastDay(currentDate, today)) {
+      alert("You cannot create an audit for a past date.");
+      return;
     }
-  };
+
+    console.log("🚀 Creating audit...");
+
+    // ✅ use selected date as scheduled date
+    const scheduledDate = toSlashDate(currentDate); // "YYYY/MM/DD"
+    console.log("📌 Scheduled date:", scheduledDate);
+
+    // ✅ STEP 1: CREATE NEW ITEM (POST) with date in body
+    const createUrl = `/process/2/${accId}/${PROCESS_CODE}`;
+
+    const createRes = await kf.api(createUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        Audit_Scheduled_Date: scheduledDate,
+      }),
+    });
+
+    console.log("✅ Create Response:", createRes);
+
+    const instanceId = createRes?._id;
+    const activityId =
+      createRes?._activity_instance_id ||
+      createRes?._current_activity_instance_id ||
+      createRes?.Activity_Instance_1; // extra fallback just in case
+
+    if (!instanceId) {
+      throw new Error("Instance ID missing from create response");
+    }
+
+    console.log("✅ Instance:", instanceId);
+    console.log("✅ Activity:", activityId);
+
+    // ✅ STEP 2: SET VARIABLES (must be string)
+    await kf.app.setVariable("Audit_Process_Instance_Id", String(instanceId));
+
+    if (activityId) {
+      await kf.app.setVariable(
+        "Audit_Process_Activity_Instance_Id",
+        String(activityId)
+      );
+    } else {
+      console.warn("⚠️ Activity ID missing. Popup may still open, but check response keys.");
+    }
+
+    console.log("✅ Variables set");
+
+    // ✅ STEP 3: Delay
+    await delay(1000);
+
+    // ✅ STEP 4: OPEN POPUP
+    console.log("📌 Opening popup:", POPUP_ID);
+    await kf.app.page.openPopup(POPUP_ID);
+
+    console.log("✅ Popup opened successfully");
+  } catch (e) {
+    console.error("❌ Create audit failed:", e);
+    alert("Create audit failed. Check console logs.");
+  }
+};
+
 
   // ---------- month view ----------
   const renderMonthView = () => {
@@ -506,11 +468,7 @@ export function DefaultLandingComponent() {
             );
           })}
 
-          {list.length > 2 && (
-            <div style={{ fontSize: 10, color: "#7C3AED" }}>
-              +{list.length - 2} more
-            </div>
-          )}
+          {list.length > 2 && <div style={{ fontSize: 10, color: "#7C3AED" }}>+{list.length - 2} more</div>}
         </div>
       );
     }
@@ -552,77 +510,23 @@ export function DefaultLandingComponent() {
     );
   };
 
+  const isPastSelected = isPastDay(currentDate, today);
+
   // ---------- day view ----------
   const renderDayView = () => {
     const list = eventsForDate(currentDate);
 
     return (
-      <div
-        style={{
-          flex: 1,
-          padding: 20,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          backgroundColor: "#F9FAFB",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+      <div style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 16, backgroundColor: "#F9FAFB" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 12, color: "#6B7280" }}>
-              {weekDaysShort[currentDate.getDay()]}
-            </div>
+            <div style={{ fontSize: 12, color: "#6B7280" }}>{weekDaysShort[currentDate.getDay()]}</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#4C1D95" }}>
-              {monthNames[currentDate.getMonth()]} {currentDate.getDate()},{" "}
-              {currentDate.getFullYear()}
+              {monthNames[currentDate.getMonth()]} {currentDate.getDate()}, {currentDate.getFullYear()}
             </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Role filter */}
-            <div
-              style={{
-                display: "inline-flex",
-                borderRadius: 999,
-                backgroundColor: "#F3F4F6",
-                border: "1px solid #E5E7EB",
-                overflow: "hidden",
-              }}
-            >
-              {[
-                { key: "all", label: "All" },
-                { key: "admin", label: "Admin" },
-                { key: "auditor", label: "Auditor" },
-                { key: "auditee", label: "Auditee" },
-              ].map((opt) => {
-                const active = roleFilter === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    onClick={() => setRoleFilter(opt.key)}
-                    style={{
-                      padding: "4px 8px",
-                      border: "none",
-                      outline: "none",
-                      fontSize: 11,
-                      cursor: "pointer",
-                      backgroundColor: active ? "#4C1D95" : "transparent",
-                      color: active ? "#FFFFFF" : "#4B5563",
-                      fontWeight: active ? 600 : 500,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-
             {/* Filters */}
             <div style={{ position: "relative" }} ref={filtersRef}>
               <button
@@ -656,9 +560,7 @@ export function DefaultLandingComponent() {
                     zIndex: 30,
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>
-                    Audit type
-                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>Audit type</div>
                   <select
                     value={auditTypeFilter}
                     onChange={(e) => setAuditTypeFilter(e.target.value)}
@@ -682,9 +584,7 @@ export function DefaultLandingComponent() {
                     ))}
                   </select>
 
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>
-                    Site
-                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>Site</div>
                   <select
                     value={siteFilter}
                     onChange={(e) => setSiteFilter(e.target.value)}
@@ -710,7 +610,6 @@ export function DefaultLandingComponent() {
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, gap: 8 }}>
                     <button
                       onClick={() => {
-                        setRoleFilter("all");
                         setAuditTypeFilter("all");
                         setSiteFilter("all");
                       }}
@@ -747,48 +646,33 @@ export function DefaultLandingComponent() {
               )}
             </div>
 
-            {/* ✅ Create button (Day view only) */}
-            <button
-              onClick={createAudit}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 999,
-                border: "1px solid #7C3AED",
-                backgroundColor: "#7C3AED",
-                color: "#FFFFFF",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                outline: "none",
-              }}
-              title="Create Audit"
-            >
-              + Create
-            </button>
+            {/* ✅ HIDE Create button on past dates */}
+            {!isPastSelected && (
+              <button
+                onClick={createAudit}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  border: "1px solid #7C3AED",
+                  backgroundColor: "#7C3AED",
+                  color: "#FFFFFF",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+                title="Create Audit"
+              >
+                + Create
+              </button>
+            )}
           </div>
         </div>
 
-        <div
-          style={{
-            marginTop: 8,
-            borderRadius: 12,
-            border: "1px solid #E5E7EB",
-            backgroundColor: "#FFFFFF",
-            padding: 12,
-            minHeight: 120,
-          }}
-        >
-          {loading && !hasLoadedOnce && (
-            <div style={{ fontSize: 13, color: "#6B7280", textAlign: "center", padding: 12 }}>
-              Loading audits…
-            </div>
-          )}
+        <div style={{ marginTop: 8, borderRadius: 12, border: "1px solid #E5E7EB", backgroundColor: "#FFFFFF", padding: 12, minHeight: 120 }}>
+          {loading && !hasLoadedOnce && <div style={{ fontSize: 13, color: "#6B7280", textAlign: "center", padding: 12 }}>Loading audits…</div>}
 
-          {!loading && list.length === 0 && (
-            <div style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: 20 }}>
-              No audits assigned for this day.
-            </div>
-          )}
+          {!loading && list.length === 0 && <div style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: 20 }}>No audits assigned for this day.</div>}
 
           {!loading && list.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -856,16 +740,7 @@ export function DefaultLandingComponent() {
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: "#F9FAFB" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
-            borderBottom: "1px solid #E5E7EB",
-            backgroundColor: "#F3E8FF",
-            padding: "6px 8px",
-            gap: 4,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #E5E7EB", backgroundColor: "#F3E8FF", padding: "6px 8px", gap: 4 }}>
           {days.map((d) => {
             const isSelected = areSameDay(d, currentDate);
             return (
@@ -881,12 +756,8 @@ export function DefaultLandingComponent() {
                   border: isSelected ? "1px solid #7C3AED" : "1px solid transparent",
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: 600, color: isSelected ? "#5B21B6" : "#6D28D9" }}>
-                  {weekDaysShort[d.getDay()]}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? "#4C1D95" : "#4B5563", marginTop: 2 }}>
-                  {d.getDate()}
-                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: isSelected ? "#5B21B6" : "#6D28D9" }}>{weekDaysShort[d.getDay()]}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? "#4C1D95" : "#4B5563", marginTop: 2 }}>{d.getDate()}</div>
               </div>
             );
           })}
@@ -910,11 +781,7 @@ export function DefaultLandingComponent() {
                   gap: 6,
                 }}
               >
-                {!loading && list.length === 0 && (
-                  <div style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center", paddingTop: 8 }}>
-                    No audits
-                  </div>
-                )}
+                {!loading && list.length === 0 && <div style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center", paddingTop: 8 }}>No audits</div>}
 
                 {!loading &&
                   list.length > 0 &&
@@ -951,68 +818,13 @@ export function DefaultLandingComponent() {
     );
   };
 
-  // ---------- main render ----------
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "#F3F4F6",
-        fontFamily: "Inter, system-ui, sans-serif",
-      }}
-    >
-      {/* Top bar */}
-      <div
-        style={{
-          padding: "12px 24px",
-          backgroundColor: "#FFFFFF",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          zIndex: 10,
-        }}
-      >
-        <button
-          onClick={goPrev}
-          style={{
-            borderRadius: 12,
-            border: "1px solid #111827",
-            backgroundColor: "#FFFFFF",
-            width: 32,
-            height: 32,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 18,
-            cursor: "pointer",
-            color: "#374151",
-            outline: "none",
-            boxShadow: "none",
-          }}
-        >
+    <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#F3F4F6", fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div style={{ padding: "12px 24px", backgroundColor: "#FFFFFF", boxShadow: "0 2px 6px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 16, zIndex: 10 }}>
+        <button onClick={goPrev} style={{ borderRadius: 12, border: "1px solid #111827", backgroundColor: "#FFFFFF", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", color: "#374151", outline: "none", boxShadow: "none" }}>
           ‹
         </button>
-        <button
-          onClick={goNext}
-          style={{
-            borderRadius: 12,
-            border: "1px solid #111827",
-            backgroundColor: "#FFFFFF",
-            width: 32,
-            height: 32,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 18,
-            cursor: "pointer",
-            color: "#374151",
-            outline: "none",
-            boxShadow: "none",
-          }}
-        >
+        <button onClick={goNext} style={{ borderRadius: 12, border: "1px solid #111827", backgroundColor: "#FFFFFF", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", color: "#374151", outline: "none", boxShadow: "none" }}>
           ›
         </button>
 
@@ -1020,36 +832,14 @@ export function DefaultLandingComponent() {
           {monthNames[currentMonth]} {currentYear}
         </div>
 
-        <button
-          onClick={goToday}
-          style={{
-            marginLeft: 8,
-            padding: 0,
-            borderRadius: 999,
-            border: "2px solid #7C3AED",
-            backgroundColor: "#FFFFFF",
-            cursor: "pointer",
-            outline: "none",
-            boxShadow: "none",
-          }}
-        >
-          <div
-            style={{
-              padding: "4px 16px",
-              borderRadius: 999,
-              backgroundColor: "#F5F3FF",
-              color: "#111827",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
+        <button onClick={goToday} style={{ marginLeft: 8, padding: 0, borderRadius: 999, border: "2px solid #7C3AED", backgroundColor: "#FFFFFF", cursor: "pointer", outline: "none", boxShadow: "none" }}>
+          <div style={{ padding: "4px 16px", borderRadius: 999, backgroundColor: "#F5F3FF", color: "#111827", fontSize: 13, fontWeight: 600 }}>
             Today
           </div>
         </button>
 
         <div style={{ flex: 1 }} />
 
-        {/* View mode */}
         <div style={{ position: "relative" }}>
           <select
             value={viewMode}
@@ -1073,17 +863,7 @@ export function DefaultLandingComponent() {
             <option value="week">Week</option>
             <option value="month">Month</option>
           </select>
-          <span
-            style={{
-              position: "absolute",
-              right: 10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: 10,
-              pointerEvents: "none",
-              color: "#4B5563",
-            }}
-          >
+          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 10, pointerEvents: "none", color: "#4B5563" }}>
             ▼
           </span>
         </div>
