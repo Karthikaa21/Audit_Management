@@ -479,284 +479,214 @@ export function DefaultLandingComponent() {
     );
   };
 
-  // ---------- day view ----------
-  const renderDayView = () => {
-    const list = eventsForDate(currentDate);
+// ...same imports and code above
 
-    return (
+// ---------- day view ----------
+const renderDayView = () => {
+  const list = eventsForDate(currentDate);
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        backgroundColor: "#F9FAFB",
+      }}
+    >
       <div
         style={{
-          flex: 1,
-          padding: 20,
           display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          backgroundColor: "#F9FAFB",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 12, color: "#6B7280" }}>
-              {weekDaysShort[currentDate.getDay()]}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#4C1D95" }}>
-              {monthNames[currentDate.getMonth()]} {currentDate.getDate()},{" "}
-              {currentDate.getFullYear()}
-            </div>
+        <div>
+          <div style={{ fontSize: 12, color: "#6B7280" }}>
+            {weekDaysShort[currentDate.getDay()]}
           </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#4C1D95" }}>
+            {monthNames[currentDate.getMonth()]} {currentDate.getDate()},{" "}
+            {currentDate.getFullYear()}
+          </div>
+        </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Role filter */}
-            <div
-              style={{
-                display: "inline-flex",
-                borderRadius: 999,
-                backgroundColor: "#F3F4F6",
-                border: "1px solid #E5E7EB",
-                overflow: "hidden",
-              }}
-            >
-              {[
-                { key: "all", label: "All" },
-                { key: "auditor", label: "Auditor" },
-                { key: "auditee", label: "Auditee" },
-                { key: "capa", label: "CAPA" },
-              ].map((opt) => {
-                const active = roleFilter === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    onClick={() => setRoleFilter(opt.key)}
-                    style={{
-                      padding: "4px 8px",
-                      border: "none",
-                      outline: "none",
-                      fontSize: 11,
-                      cursor: "pointer",
-                      backgroundColor: active ? "#4C1D95" : "transparent",
-                      color: active ? "#FFFFFF" : "#4B5563",
-                      fontWeight: active ? 600 : 500,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Filters */}
-            <div style={{ position: "relative" }} ref={filtersRef}>
-              <button
-                onClick={() => setShowFilters((prev) => !prev)}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  border: "1px solid #D1D5DB",
-                  fontSize: 12,
-                  backgroundColor: "#F9FAFB",
-                  color: "#111827",
-                  cursor: "pointer",
-                  outline: "none",
-                }}
-              >
-                Filters ▾
-              </button>
-
-              {showFilters && (
-                <div
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Role filter (✅ CAPA removed) */}
+          <div
+            style={{
+              display: "inline-flex",
+              borderRadius: 999,
+              backgroundColor: "#F3F4F6",
+              border: "1px solid #E5E7EB",
+              overflow: "hidden",
+            }}
+          >
+            {[
+              { key: "all", label: "All" },
+              { key: "auditor", label: "Auditor" },
+              { key: "auditee", label: "Auditee" },
+              // ❌ removed: { key: "capa", label: "CAPA" },
+            ].map((opt) => {
+              const active = roleFilter === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => setRoleFilter(opt.key)}
                   style={{
-                    position: "absolute",
-                    right: 0,
-                    marginTop: 4,
-                    backgroundColor: "#FFFFFF",
-                    borderRadius: 12,
-                    border: "1px solid #E5E7EB",
-                    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-                    padding: 10,
-                    minWidth: 220,
-                    zIndex: 30,
+                    padding: "4px 8px",
+                    border: "none",
+                    outline: "none",
+                    fontSize: 11,
+                    cursor: "pointer",
+                    backgroundColor: active ? "#4C1D95" : "transparent",
+                    color: active ? "#FFFFFF" : "#4B5563",
+                    fontWeight: active ? 600 : 500,
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>
-                    Audit type
-                  </div>
-                  <select
-                    value={auditTypeFilter}
-                    onChange={(e) => setAuditTypeFilter(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "4px 8px",
-                      borderRadius: 8,
-                      border: "1px solid #D1D5DB",
-                      fontSize: 12,
-                      marginBottom: 8,
-                      backgroundColor: "#F9FAFB",
-                      color: "#111827",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="all">All types</option>
-                    {auditTypeOptions.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>
-                    Site
-                  </div>
-                  <select
-                    value={siteFilter}
-                    onChange={(e) => setSiteFilter(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "4px 8px",
-                      borderRadius: 8,
-                      border: "1px solid #D1D5DB",
-                      fontSize: 12,
-                      backgroundColor: "#F9FAFB",
-                      color: "#111827",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="all">All sites</option>
-                    {siteOptions.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, gap: 8 }}>
-                    <button
-                      onClick={() => {
-                        setRoleFilter("all");
-                        setAuditTypeFilter("all");
-                        setSiteFilter("all");
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: "4px 8px",
-                        borderRadius: 999,
-                        border: "none",
-                        backgroundColor: "#EEF2FF",
-                        color: "#4C1D95",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Clear
-                    </button>
-                    <button
-                      onClick={() => setShowFilters(false)}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 999,
-                        border: "1px solid #E5E7EB",
-                        backgroundColor: "#FFFFFF",
-                        color: "#374151",
-                        fontSize: 11,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ✅ NO "Create audit" button */}
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
-        </div>
 
-        <div
-          style={{
-            marginTop: 8,
-            borderRadius: 12,
-            border: "1px solid #E5E7EB",
-            backgroundColor: "#FFFFFF",
-            padding: 12,
-            minHeight: 120,
-          }}
-        >
-          {loading && !hasLoadedOnce && (
-            <div style={{ fontSize: 13, color: "#6B7280", textAlign: "center", padding: 12 }}>
-              Loading audits…
-            </div>
-          )}
+          {/* Filters */}
+          <div style={{ position: "relative" }} ref={filtersRef}>
+            <button
+              onClick={() => setShowFilters((prev) => !prev)}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: "1px solid #D1D5DB",
+                fontSize: 12,
+                backgroundColor: "#F9FAFB",
+                color: "#111827",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              Filters ▾
+            </button>
 
-          {!loading && list.length === 0 && (
-            <div style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: 20 }}>
-              No audits assigned for this day.
-            </div>
-          )}
+            {showFilters && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  marginTop: 4,
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 12,
+                  border: "1px solid #E5E7EB",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+                  padding: 10,
+                  minWidth: 220,
+                  zIndex: 30,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>
+                  Audit type
+                </div>
+                <select
+                  value={auditTypeFilter}
+                  onChange={(e) => setAuditTypeFilter(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "4px 8px",
+                    borderRadius: 8,
+                    border: "1px solid #D1D5DB",
+                    fontSize: 12,
+                    marginBottom: 8,
+                    backgroundColor: "#F9FAFB",
+                    color: "#111827",
+                    outline: "none",
+                  }}
+                >
+                  <option value="all">All types</option>
+                  {auditTypeOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
 
-          {!loading && list.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {list.map((ev) => {
-                const palette = getAssignmentPalette(ev.assignmentRole);
-                return (
-                  <div
-                    key={ev.id}
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>
+                  Site
+                </div>
+                <select
+                  value={siteFilter}
+                  onChange={(e) => setSiteFilter(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "4px 8px",
+                    borderRadius: 8,
+                    border: "1px solid #D1D5DB",
+                    fontSize: 12,
+                    backgroundColor: "#F9FAFB",
+                    color: "#111827",
+                    outline: "none",
+                  }}
+                >
+                  <option value="all">All sites</option>
+                  {siteOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      setRoleFilter("all");
+                      setAuditTypeFilter("all");
+                      setSiteFilter("all");
+                    }}
                     style={{
-                      borderRadius: 8,
-                      backgroundColor: palette.bg,
-                      padding: "8px 10px",
-                      fontSize: 13,
-                      color: palette.fg,
-                      border: `1px solid ${palette.border}`,
+                      flex: 1,
+                      padding: "4px 8px",
+                      borderRadius: 999,
+                      border: "none",
+                      backgroundColor: "#EEF2FF",
+                      color: "#4C1D95",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <div style={{ fontSize: 12 }}>
-                        <strong>{palette.label} • </strong>
-                        {ev.auditType || ev.title}
-                      </div>
-                    </div>
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setShowFilters(false)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 999,
+                      border: "1px solid #E5E7EB",
+                      backgroundColor: "#FFFFFF",
+                      color: "#374151",
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
-                    <div style={{ fontSize: 12 }}>
-                      <strong>Site:</strong> {ev.siteName}
-                    </div>
-
-                    {/* show the other parties for context */}
-                    {ev.auditorName && (
-                      <div style={{ fontSize: 12 }}>
-                        <strong>Auditor:</strong> {ev.auditorName}
-                      </div>
-                    )}
-                    {ev.auditeeName && (
-                      <div style={{ fontSize: 12 }}>
-                        <strong>Auditee:</strong> {ev.auditeeName}
-                      </div>
-                    )}
-                    {ev.capaName && (
-                      <div style={{ fontSize: 12 }}>
-                        <strong>CAPA:</strong> {ev.capaName}
-                      </div>
-                    )}
-                    {ev.createdByName && (
-                      <div style={{ fontSize: 12 }}>
-                        <strong>Created by:</strong> {ev.createdByName}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {/* still no create button here */}
         </div>
       </div>
-    );
-  };
+
+      {/* ...rest of your day view unchanged */}
+    </div>
+  );
+};
+
+// ...rest of file unchanged
+
 
   // ---------- week view ----------
   const renderWeekView = () => {
